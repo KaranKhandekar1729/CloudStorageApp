@@ -86,6 +86,10 @@ const server = http.createServer(async (req, res) => {
     const newName = `./storage/${req.headers.newfilename}.${fileExtension}`
     await fs.rename(originalName, newName)
     res.end("File name changed")
+  } else if (req.method === "DELETE") {
+    const fileName = `./storage/${req.headers.filename}`
+    await fs.rm(`${fileName}`)
+    res.end("File deleted from the server")
   }
 })
 

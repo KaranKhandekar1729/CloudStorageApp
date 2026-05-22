@@ -59,6 +59,19 @@ export default function App() {
     fetchFiles()
   }
 
+  const handleDelete = async (file) => {
+    const response =  await fetch("http://localhost:4000/", {
+      method: 'DELETE',
+      headers: {
+        "filename": `${file}`
+      }
+    })
+
+    const data = await response.text()
+    console.log(data)
+    fetchFiles()
+  }
+
   return (
     <>
       <h1>My Files</h1>
@@ -68,6 +81,7 @@ export default function App() {
             <button onClick={() => window.open(`http://localhost:4000/${file}?action=open`)}>Open</button>
             <button onClick={() => window.open(`http://localhost:4000/${file}?action=download`)}>Download</button>
             <button onClick={() => setRenamingFile(file)}>Rename</button>
+            <button onClick={() => handleDelete(file)}>Delete</button>
             { renamingFile === file &&
               <>
                 <input type="text" value={renameText} onChange={(e) => (setRenameText(e.target.value))} /> 
