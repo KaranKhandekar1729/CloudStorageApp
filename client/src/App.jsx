@@ -27,6 +27,7 @@ export default function App() {
       xhr.setRequestHeader("filename", uploadedFile.name)
       xhr.onload = () => {
         console.log(xhr.responseText)
+        fetchFiles()
       };
       xhr.upload.onprogress = (e) => {
         const progress = ((e.loaded / e.total) * 100)
@@ -37,7 +38,7 @@ export default function App() {
       }
 
       xhr.send(uploadedFile);
-      fetchFiles()
+      
       setTimeout(() => {
         setProgress('')
       }, 2000)

@@ -78,6 +78,7 @@ const server = http.createServer(async (req, res) => {
         writeStream.write(chunk)
       })
       req.on('end', () => {
+        writeStream.end()
         res.end("file uploaded to server")
       })
   } else if (req.method === "PATCH") {
