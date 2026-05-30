@@ -82,15 +82,25 @@ const server = http.createServer(async (req, res) => {
         res.end("file uploaded to server")
       })
   } else if (req.method === "PATCH") {
-    const originalName = `./storage/${req.headers.originalname}`
-    const fileExtension = originalName.split(".").pop()
-    const newName = `./storage/${req.headers.newfilename}.${fileExtension}`
-    await fs.rename(originalName, newName)
-    res.end("File name changed")
+    req.on("data", (chunk) => {
+        const data = JSON.parse(chunk.toString())
+        console.log(data)
+        const originalName = `./storage/${data.originalName}`
+        const fileExtension = originalName.split(".").pop()
+        const newName = `./storage/${data.renameText}.${fileExtension}`
+        fs.rename(originalName, newName)
+        res.end("File name changed")
+    })
   } else if (req.method === "DELETE") {
-    const fileName = `./storage/${req.headers.filename}`
-    await fs.rm(`${fileName}`)
-    res.end("File deleted from the server")
+    req.on("data", async (chunk) => {
+      try {
+        const filename = chunk.toString()
+        await fs.rm(`./storage/${filename}`)
+        res.end("File deleted from the server")
+      } catch (error) {
+        res.end(error)
+      }
+    })
   }
 })
 

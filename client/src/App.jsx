@@ -47,10 +47,7 @@ export default function App() {
   const handleRename = async (originalName) => {
     const response = await fetch('http://localhost:4000/', {
       method: 'PATCH',
-      headers: {
-        "originalname": `${originalName}`,
-        "newfilename": `${renameText}`
-      }
+      body: JSON.stringify({originalName, renameText})
     })
 
     const data = await response.text()
@@ -60,12 +57,10 @@ export default function App() {
     fetchFiles()
   }
 
-  const handleDelete = async (file) => {
+  const handleDelete = async (filename) => {
     const response =  await fetch("http://localhost:4000/", {
       method: 'DELETE',
-      headers: {
-        "filename": `${file}`
-      }
+      body: filename
     })
 
     const data = await response.text()
