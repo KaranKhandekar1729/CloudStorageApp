@@ -3,27 +3,29 @@ import { useEffect } from "react"
 
 
 export default function App() {
+  const URL = 'http://localhost:4000/'
   const [filesInDIR, setFilesInDIR] = useState([]);
   const [progress, setProgress] = useState('')
   const [renamingFile, setRenamingFile] = useState(null)
   const [renameText, setRenameText] = useState('')
+  const [currentPath, setCurrentPath] = useState('')
 
-  const fetchFiles = async () => {
-      const res = await fetch("http://localhost:4000/")
+  const fetchFiles = async (path = currentPath) => {
+      const res = await fetch(`${URL}${path}`)
       const data = await res.json()
       console.log(data)
       setFilesInDIR(data)
   }
 
   useEffect(() => {
-    fetchFiles()
-  }, [])
+    fetchFiles(currentPath)
+  }, [currentPath])
 
   const handleOnChange = (e) => {
     const uploadedFile = e.target.files[0]
     if (!uploadedFile) return;
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "http://localhost:4000/", true);
+      xhr.open("POST", `${URL}${currentPath}`, true);
       xhr.setRequestHeader("filename", uploadedFile.name)
       xhr.onload = () => {
         console.log(xhr.responseText)
@@ -45,9 +47,9 @@ export default function App() {
   }
 
   const handleRename = async (originalName) => {
-    const response = await fetch('http://localhost:4000/', {
+    const response = await fetch(URL, {
       method: 'PATCH',
-      body: JSON.stringify({originalName, renameText})
+      body: JSON.stringify({originalName, renameText, currentPath})
     })
 
     const data = await response.text()
@@ -58,9 +60,9 @@ export default function App() {
   }
 
   const handleDelete = async (filename) => {
-    const response =  await fetch("http://localhost:4000/", {
+    const response =  await fetch(URL, {
       method: 'DELETE',
-      body: filename
+      body: JSON.stringify({filename, path: currentPath})
     })
 
     const data = await response.text()
@@ -71,17 +73,25 @@ export default function App() {
   return (
     <>
       <h1>My Files</h1>
+        {currentPath && <button onClick={() => {
+          const parts = currentPath.split('/');
+          parts.pop();
+          setCurrentPath(parts.join('/'));
+        }}>Back</button>}
         {filesInDIR.map((file, index) => (    
           <div key={index}>
-            {file}
-            <button onClick={() => window.open(`http://localhost:4000/${file}?action=open`)}>Open</button>
-            <button onClick={() => window.open(`http://localhost:4000/${file}?action=download`)}>Download</button>
-            <button onClick={() => setRenamingFile(file)}>Rename</button>
-            <button onClick={() => handleDelete(file)}>Delete</button>
-            { renamingFile === file &&
+            {file.isDirectory ? '📁' : '📄'} {file.name}
+            <button onClick={() => {
+              if (file.isDirectory) setCurrentPath(prev => prev ? `${prev}/${file.name}` : file.name);
+              else window.open(`${URL}${currentPath ? currentPath + '/' : ''}${file.name}?action=open`);
+            }}>Open</button>
+            <button onClick={() => window.open(`${URL}${currentPath ? currentPath + '/' : ''}${file.name}?action=download`)}>Download</button>
+            <button onClick={() => setRenamingFile(file.name)}>Rename</button>
+            <button onClick={() => handleDelete(file.name)}>Delete</button>
+            { renamingFile === file.name &&
               <>
                 <input type="text" value={renameText} onChange={(e) => (setRenameText(e.target.value))} /> 
-                <button onClick={() => handleRename(file)}>Save</button> 
+                <button onClick={() => handleRename(file.name)}>Save</button> 
               </>
             }
           </div>

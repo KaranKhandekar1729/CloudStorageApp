@@ -25,44 +25,32 @@ const server = http.createServer(async (req, res) => {
     })
   
     try {
-      const fileHandle = await open(rootUrl);
-      const stats = await fileHandle.stat();
+      // checks if path exists 
+      const stats = await fs.stat(rootUrl);
   
+      // checks if it is a directory and maps all the files in it 
       if (stats.isDirectory()) {
-        // const path = url.split("/")
-        // const currentFolder = rootFolder ? "Storage" : path[path.length - 1];
-  
-        const filesInDIR = await readdir(rootUrl);
-  
-        
-        // let endRes = `<h1>Storage App</h1><h2>Current folder: ${currentFolder}</h2><h3>Files: </h3>`;
-        
-        // filesInDIR.forEach((file) => {
-        //   const link = (rootFolder ? "" : url + "/") + encodeURIComponent(file);
-        //   endRes += `${file} <a href=${link + "?action=open"}>Open</a>\t<a href=${link + "?action=download"}>Download</a><br>`;
-        // });
-        
+        // withFileTypes returns dirent objects(which tells the name of the entry and if it is a folder)
+        const entries = await readdir(rootUrl, { withFileTypes: true });
+        const filesInDIR = entries.map(entry => ({
+          name: entry.name,
+          isDirectory: entry.isDirectory()
+        }));
+
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify(filesInDIR));
       } else {
+        const fileHandle = await open(rootUrl);
         const mimeType = mime.lookup(rootUrl) || "application/octet-stream";
-        const open = queryParams?.action != "download";
+        const isInline = queryParams?.action != "download";
   
         res.setHeader("Content-Type", mimeType);
         res.setHeader("Content-Length", stats.size);
-        res.setHeader("Content-Disposition", open ? "inline" : "attachment");
+        res.setHeader("Content-Disposition", isInline ? "inline" : "attachment");
   
-        const readStream = fileHandle.createReadStream(rootUrl); // reads file data in chunks
+        const readStream = fileHandle.createReadStream(); // reads file data in chunks
         readStream.pipe(res); // connects readable to writable stream;
-  
-        // ^ This is basically this V
-        // readStream.on("data", (chunk) => {
-        //   res.write(chunk);
-        // });
-  
-        // readStream.on("end", () => {
-        //   res.end();
-        // });
+        res.on('finish', () => fileHandle.close());
       }
     } catch (error) {
       console.error(error.message)
@@ -71,10 +59,11 @@ const server = http.createServer(async (req, res) => {
   } else if (req.method === "OPTIONS") {
     res.end("OK")
   } else if (req.method === "POST") {
-      const writeStream = createWriteStream(`./storage/${req.headers.filename}`)
+      const [url] = req.url.split("?");
+      const destination = `./storage${decodeURIComponent(url)}/${req.headers.filename}`.replace('//', '/');
+      const writeStream = createWriteStream(destination)
       let count = 0
       req.on("data", (chunk) => {
-        console.log(count++)
         writeStream.write(chunk)
       })
       req.on('end', () => {
@@ -82,28 +71,35 @@ const server = http.createServer(async (req, res) => {
         res.end("file uploaded to server")
       })
   } else if (req.method === "PATCH") {
-    req.on("data", (chunk) => {
+    req.on("data", async (chunk) => {
+      try {
         const data = JSON.parse(chunk.toString())
         console.log(data)
-        const originalName = `./storage/${data.originalName}`
-        const fileExtension = originalName.split(".").pop()
-        const newName = `./storage/${data.renameText}.${fileExtension}`
-        fs.rename(originalName, newName)
+        const originalPath = `./storage${data.currentPath}/${data.originalName}`
+        const fileExtension = data.originalName.split(".").pop()
+        const newPath = `./storage${data.currentPath}/${data.renameText}.${fileExtension}`
+        await fs.rename(originalPath, newPath)
         res.end("File name changed")
+      } catch (error) {
+        res.statusCode = 500
+        res.end("Rename failed")
+      }
     })
   } else if (req.method === "DELETE") {
     req.on("data", async (chunk) => {
       try {
-        const filename = chunk.toString()
-        await fs.rm(`./storage/${filename}`)
+        const data = JSON.parse(chunk.toString());
+        const target = `./storage${data.path}/${data.filename}`.replace('//', '/');
+        await fs.rm(target, { recursive: true });
         res.end("File deleted from the server")
       } catch (error) {
-        res.end(error)
+        res.statusCode = 500;
+        res.end("Delete failed");
       }
-    })
+    });
   }
 })
 
-server.listen(4000, '0.0.0.0', () => {
+server.listen(4000, () => {
   console.log("Listening on PORT 4000");
 })
